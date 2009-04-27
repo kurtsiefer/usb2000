@@ -1,1 +1,0 @@
-cmd_/home/chris/programs/usb2000/2.6/usb2000.ko := ld -m elf_x86_64 -r -o /home/chris/programs/usb2000/2.6/usb2000.ko /home/chris/programs/usb2000/2.6/usb2000.o /home/chris/programs/usb2000/2.6/usb2000.mod.o
