@@ -1,0 +1,12 @@
+#set of udev rules to cope with a new device driver.
+# fixed problem with symlink identification for kernel 2.2.22, the
+# environment variable PHYSDEVDRIVER got lost....28.2.2008chk
+
+SUBSYSTEM=="usb", ACTION=="add", ENV{PRODUCT}=="2457/1002/*", RUN+="/sbin/insmod DRIVERPATH/usb2000.ko"
+
+SUBSYSTEM=="usb", ACTION=="remove", ENV{PRODUCT}=="2457/1002/*", RUN+="/sbin/rmmod usb2000"
+
+# create a symbolic link to the device ina ioboards directory with the correct
+# owner set to the original device.
+
+SUBSYSTEM=="usb", ACTION=="add", KERNEL=="*Spectrometer*", GROUP="users", SYMLINK="ioboards/%k"

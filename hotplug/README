@@ -1,0 +1,8 @@
+This contains only code which works with the udev device mechanism; there may
+be a problem to run this with a SuSE version before 10.0
+
+for SuSE 10.0 and higher:
+
+60-oceanoptics.rules goes into /etc/udev/rules.d
+
+todo: check compatibility with other OS versions
