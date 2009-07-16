@@ -21,7 +21,7 @@ set YSCALE 1
 
 # title text
 set FNT "-*-Helvetica-*-r-*-*-18-180-*-*-*-*-*-*"
-label .headline -text "USB2000 spectrometer" -font $FNT
+label .headline -text "USB2000/2000+ spectrometer" -font $FNT
 pack .headline -anchor w
 
 # prepare buttons

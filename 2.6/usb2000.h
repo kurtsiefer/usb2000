@@ -60,3 +60,4 @@
 #define SetTimeout            0x201 /* sets the timeout for a EP2 read event
 				       argument is in miliseconds */
 
+#define GetDeviceID           0x999 /* retrieve the USB device ID */

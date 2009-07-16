@@ -1,4 +1,4 @@
-/* program to read a spectrum from the ocean optics USB2000 device.
+/* program to read a spectrum from the ocean optics USB2000/USB2000+ device.
 
    usage: spectroread [-o fnam] [-i integrationtime] [-d devicefile] [-s serial]
                       [-v verbosity]
@@ -19,6 +19,7 @@
                         8: generic comment
 			16: ccd dark pixel level
                         32: stored wavelength coefficients
+			64: USB device ID
 
    The program emits to stdout or the target file name a space-separated list
    with the following entries:
@@ -26,6 +27,7 @@
 
 
    Status: first version 26.4.09chk
+           translation to work also with usb2000+ 17.7.09chk 
 
    ToDo: Keep it so general that a usb200+ or 400+ can be used as well.
 
@@ -40,6 +42,8 @@
 #include <string.h>
 
 #include "usb2000.h" 
+
+#define USB_DEVICE_ID_USB2000 0x1002
 
 #define DEFAULT_DEVICENAME "/dev/ioboards/Spectrometer0"
 #define DEFAULT_INTEGRATIONTIME 100
@@ -74,6 +78,13 @@ void generate_numbers_USB2000(unsigned char *data, int *values) {
     for (i=0; i<2048; i++)
 	values[i] = data[(i%64)+(i>>6)*128+64]*256 + data[(i%64)+(i>>6)*128];
 }
+void generate_numbers_USB2000p(unsigned char *data, int *values) {
+    int i;
+    for (i=0; i<2048; i++)
+	values[i] = data[i*2+1]*256 + data[2*i];
+}
+
+
 #define BLACKLEVEL_START 6
 #define BLACKLEVEL_END 20
 float baselevel_USB2000( int *values) {
@@ -98,6 +109,7 @@ int main(int argc, char *argv[]) {
     float baselevel;  /* generated out of beginning pxels */
     double lambda;   /* for generating wavelength */
     time_t tme;
+    int deviceID; /* stores the usb deviceID of the spectrometer */
     
 
     /* parsing options */
@@ -138,8 +150,12 @@ int main(int argc, char *argv[]) {
 	outhandle=stdout;
     }
 
+    /* get device ID */
+    ioctl(handle,GetDeviceID,&deviceID);
+
     /* prepare device */
-    ioctl(handle,SetIntegrationTime,integrationtime);
+    ioctl(handle,SetIntegrationTime,
+	  integrationtime * ((deviceID==USB_DEVICE_ID_USB2000)?1:1000));
     ioctl(handle,InitializeUSB2000);
 
     /* get wavelength conversion coefficients */
@@ -173,7 +189,11 @@ int main(int argc, char *argv[]) {
 	return -emsg(8);
     } else {
 	/* convert return string into a list of numbers */
-	generate_numbers_USB2000(data2, rawvalues);
+	if (deviceID==USB_DEVICE_ID_USB2000) {
+	    generate_numbers_USB2000(data2, rawvalues);
+	} else {
+	    generate_numbers_USB2000p(data2, rawvalues);
+	}
 	baselevel=baselevel_USB2000(rawvalues);
 
 	/* generate first header */
@@ -212,6 +232,9 @@ int main(int argc, char *argv[]) {
 	    fprintf(outhandle, "# wavelength conversion coefficients, lam = sum_i c_i index**i\n");
 	    for (i=0;i<4;i++ ) fprintf(outhandle, "#  c%1d = %lf\n",
 				       i, lam_coeff[i]);
+	}
+	if (verbositylevel & 64) {
+	    fprintf(outhandle, "# USB device ID: 0x%x\n",deviceID);
 	}
 	
     }

@@ -1,10 +1,9 @@
 /*  usb2000.c : USB device driver for ocean optics spectrometers.
 
-    The driver currently supports USB2000 devices, but the set of commands
-    which really work is not entirely clear, since the syntax was mostly
-    taken from the USB2000+ device descripion. Not all USB calls seem to
-    work, but the core features do. Once we have a USB200+, we can make it
-    compatible with it as well. 
+    The driver currently supports USB2000/200+ devices, but the set of commands
+    which really works under the USB200 is not entirely clear, since the
+    syntax was mostly taken from the USB2000+ device descripion. 
+    Not all USB calls seem to work, but the core features do for the usb2000.
 
     Device control currently is through ioctl() calls, but see below.
 
@@ -28,7 +27,7 @@
 --
 
    usb2000.c  - version for kernel version 2.6. All calls to the driver are
-           currently made via ioctls, which are described in the usb200.h file.
+           currently made via ioctls, which are described in the usb2000.h file.
 
    STATUS: 26.4.2009 first attempt
 
@@ -36,7 +35,7 @@
            that a read attempt results in a ASCII text spectrum, and write
 	   attempts into the device node allows to set some control parameters.
 	 * implement the bus control and read options announced in the
-	   USB200+ OEM specs. For now, this is only a very basic driver.
+	   USB2000+ OEM specs. For now, this is only a very basic driver.
   
 */
 
@@ -61,12 +60,13 @@
 
 /* Module parameters*/
 MODULE_AUTHOR("Christian Kurtsiefer <christian.kurtsiefer@gmail.com>");
-MODULE_DESCRIPTION("Experimental driver for Ocean Optics 2000 spectrometer\n");
+MODULE_DESCRIPTION("Experimental driver for Ocean Optics USB2000(+) spectrometer\n");
 MODULE_LICENSE("GPL");  
 
 #define USBDEV_NAME "usb2000"   /* used everywhere... */
 #define USB_VENDOR_ID_OCEANOPTICS 0x2457
-#define USB_DEVICE_ID 0x1002
+#define USB_DEVICE_ID_USB2000 0x1002
+#define USB_DEVICE_ID_USB2PLUS 0x101E
 
 /* timeout in milliseconds */
 #define DEFAULT_TIMEOUT 100
@@ -80,8 +80,13 @@ typedef struct cardinfo {
     struct device *hostdev; /* roof device */
     unsigned int outpipe1; /* contains pipe ID */ 
     unsigned int inpipe1;
-    unsigned int inpipe2; /* EP7 large input pipe */
+    unsigned int inpipe2; /* EP7/EP2 large input pipe */
+    unsigned int inpipe3; /* needs docu!!! large input pipe */
+
     struct cardinfo *next, *previous; /* for device management */
+
+    /* device info */
+    int deviceID;
 
     /* status data */
     int timeout_value; /* wait for a spectrum request */
@@ -204,7 +209,8 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
 	    break;
         /* here are dummy entries for commands which don't need to send sth
 	   to the USB device. This is to trap illegal ioctls. */
-	case EmptyPipe:         /* confirmed to work */
+	case EmptyPipe:     /* confirmed to work */
+	case GetDeviceID:
 	    break;
 
 	default:
@@ -236,6 +242,10 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
 			     4097, &atrf, cp->timeout_value);	    
 	    if (err) return -err; /* are there better options ? */
 	    if (copy_to_user(argp, returndata, 4097)) return -EFAULT;
+	    break;
+	/* commands which do not involve a USB interaction */
+	case GetDeviceID:
+	    if (copy_to_user(argp, &cp->deviceID, sizeof(int))) return -EFAULT;
 	    break;
     }
 
@@ -281,6 +291,9 @@ static int __init usbdev_init_one(struct usb_interface *intf, const struct usb_d
 	return -ENOMEM;
     }
 
+    /* store device ID in a device variable for later */
+    cp->deviceID = id->idProduct;
+    
     cp->iocard_opened = 0; /* no open */
 
     retval=usb_register_dev(intf, &spectrometerclass);
@@ -295,23 +308,31 @@ static int __init usbdev_init_one(struct usb_interface *intf, const struct usb_d
     for (iidx=0;iidx<intf->num_altsetting;iidx++){ /* probe interfaces */
 	setting = &(intf->altsetting[iidx]);
 	if (setting->desc.bNumEndpoints==4) {
-	    for (epi=0;epi<4;epi++) {
+	    for (epi=0;epi<5;epi++) {
 		/* printk("epi: %d, ead: %d\n",epi,
 		   setting->endpoint[epi].desc.bEndpointAddress); */
 		switch (setting->endpoint[epi].desc.bEndpointAddress) {
-		    case 0x02: /* EP 2 out */
+		    case 0x81: /* EP1 in */
 			found |=1; break;
-		    case 0x82: /* EP2 in */
+		    case 0x01: /* EP1 out  */
 			found |=2; break;
-		    case 0x87: /* EP 7 in */
+		    case 0x82: /* EP2 in */
 			found |=4; break;
+		    case 0x02: /* EP2 out */
+			found |=8; break;
+		    case 0x86: /* EP6 in  */
+			found |=16; break;
+		    case 0x87: /* EP 7 in */
+			found |=64; break;
 		}
-		if (found == 7) break;
+		if (found == ((cp->deviceID==USB_DEVICE_ID_USB2000)?0x4c:0x17)) 
+		    break;
 	    }
 	}
     }
-    if (found != 7) {/* have not found correct interface */
-	printk(" did not find interface; found: %d\n",found);
+    if (found != ((cp->deviceID==USB_DEVICE_ID_USB2000)?0x4c:0x17)) {
+	/* have not found correct interface */
+	printk("incompete intf; find code: %x. See source for details\n",found);
 	goto out1; /* no device found */
     }
 
@@ -320,10 +341,17 @@ static int __init usbdev_init_one(struct usb_interface *intf, const struct usb_d
     cp->hostdev = cp->dev->bus->controller; /* for nice cleanup */
 
     /* construct endpoint pipes */
-    cp->outpipe1 = usb_sndbulkpipe(cp->dev, 2); /* construct bulk EP2 out */
-    cp->inpipe1 = usb_rcvbulkpipe(cp->dev, 0x82); /*  EP2 in pipe */
-    cp->inpipe2 = usb_rcvbulkpipe(cp->dev, 0x87); /*  EP7 in pipe */
-
+    if (cp->deviceID == USB_DEVICE_ID_USB2000) {
+	cp->outpipe1 = usb_sndbulkpipe(cp->dev, 02); /* bulk EP2 out */
+	cp->inpipe1 = usb_rcvbulkpipe(cp->dev, 0x82); /*  EP2i pipe; spectra */
+	cp->inpipe2 = usb_rcvbulkpipe(cp->dev, 0x87); /*  EP7i pipe; misc */
+    } else { /* here we are in usb2000+ or better land */
+	cp->outpipe1 = usb_sndbulkpipe(cp->dev, 1); /* construct bulk EP1 out */
+	cp->inpipe1 = usb_rcvbulkpipe(cp->dev, 0x82); /*  EP2i pipe; spectra */
+	cp->inpipe2 = usb_rcvbulkpipe(cp->dev, 0x81); /*  EP1i pipe; misc */
+	cp->inpipe3 = usb_rcvbulkpipe(cp->dev, 0x86); /*  EP6; what is this? */
+    }
+	
     /* construct a wait queue for proper disconnect action */
     init_waitqueue_head(&cp->closingqueue);
 
@@ -382,7 +410,8 @@ static void __exit usbdev_remove_one(struct usb_interface *interface) {
 /* driver description info for registration; more details?  */
 
 static struct usb_device_id usbdev_tbl[] = {
-    {USB_DEVICE(USB_VENDOR_ID_OCEANOPTICS, USB_DEVICE_ID)},
+    {USB_DEVICE(USB_VENDOR_ID_OCEANOPTICS, USB_DEVICE_ID_USB2000)},
+    {USB_DEVICE(USB_VENDOR_ID_OCEANOPTICS, USB_DEVICE_ID_USB2PLUS)},
     {},
 };
 
