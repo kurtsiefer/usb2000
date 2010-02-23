@@ -23,41 +23,73 @@
    to the USB commands of the device (TBD), but there are some generic
    commands which allow to play with the interface from user space.
 
-   STATUS:   first version 26.4.2009
+   STATUS:  -first version 26.4.2009
+            -ioctl comands more compatible with recommendation; there are
+	     still some commands which don't pass pointers but values
+	     directly. No sure if this will be trashed some day 23.2.10chk
  */
 
+/* The following choices have been made to define the ioctls in the way it
+   seems to be recommended in the kernel ioctl doc:
+   the 'letter' identifier 0xaa and 0xab have been used. This causes perhaps
+   a conflict with other commands at some point, but since there is no reserved
+   set of letter codes with a barred tinkering from glibc I leave them for now
+   We still keep the same LSB of the ioctl, since this is also used as the
+   corresponding USB command token.
+*/
+#include <asm/ioctl.h>
+
 /* confirmed operation: */
-#define  InitializeUSB2000   1    /* needs no argument */
-#define  SetIntegrationTime  2    /* takes a 32bit value as argument */
-#define  QueryInformation    5    /* takes  arg in byte 0, returns 17 bytes 
-				     the argument must be a pointer to an array
-				     of char of at least 17 bytes. */
-#define  RequestSpectra      9    /* returns 4097 bytes of data. The argument
-				     of the ioctl call is a pointer to an array
-				     of char of at least 4097 bytes size */
-#define  QueryStatus      0xfe    /* returns 16 bytes. The argument is a
-				     pointer to an array of char of at least
-				     16 bytes size */
+#define  InitializeUSB2000  _IO(0xaa, 1)              /* needs no argument */
+#define  SetIntegrationTime _IOW(0xaa, 2, int)        /* takes a 32bit value
+							 as argument */
+#define  QueryInformation   _IOWR(0xaa, 5, char[17])  /* takes  arg in byte 0,
+							 returns 17 bytes. The
+							 argument must be a
+							 pointer to an array
+							 of char of at least
+							 17 bytes. */
+#define  RequestSpectra     _IOR(0xaa, 9, char[17])    /* returns 4097 bytes
+							  of data. Argument
+							  of the ioctl call
+							  is a pointer to an 
+							  array of char of 
+							  at least 4097 bytes
+							  size */
+#define  QueryStatus        _IOR(0xaa, 0xfe , char[16])/* returns 16 bytes.
+							  Argument is pointer
+							  to an array of char
+							  of at least 16 bytes
+							  size */
 
 /* ioctls for the USB driver which have no direct USB firmawre command
    equivalent */
-#define EmptyPipe             0x200 /* reads the reminder of the EP2 data */
-#define TriggerPacket         0x109 /* issues a trigger cmd, but does not
-				       read. This is a no-blocking version
-				       of a RequestSpectra command */
-
+#define EmptyPipe           _IOR(0xab, 0x00, char[4097]) /* reads the remainder
+							    of the EP2 data */
+#define TriggerPacket       _IO(0xab, 0x09)              /* issues a trigger
+							    cmd, but does not
+							    read. This is a
+							    no-blocking version
+							    of RequestSpectra */
 /* unconfirmed operation */ 
-#define  SetStrobeEnable     3    /* takes integer argument */
-#define  SetShutdownMode     4    /* takes integer argument */
-#define  SetTriggerMode     10    /* takes trigger mode as argument */
-#define  ReadRegister     0x6b    /* returns 2 bytes into a user variable. The
-				     argument holds a pointer to int, which
-				     initially also contains the rgister adr. */
-#define  ReadPCBTemperature 0x6c  /* returns 2 bytes into a user variable. The
-				     argument holds a pointer to int. */
+#define  SetStrobeEnable    _IOW(0xaa, 3, int)    /* takes integer argument */
+#define  SetShutdownMode    _IOW(0xaa, 4, int)    /* takes integer argument */
+#define  SetTriggerMode     _IOW(0xaa, 10, int)   /* takes trigger mode as
+						     argument */
+#define  ReadRegister       _IOWR(0xaa, 0x6b, int)/* returns 2 bytes into a 
+						     user variable. Argument of
+						     ioctl holds a pointer to
+						     int, which initially also
+						     contains the register 
+						     adr. */
+#define  ReadPCBTemperature _IOR(0xaa, 0x6c, int) /* returns 2 bytes into a
+						     user variable. Argument
+						     of ioctl holds a pointer
+						     to int. */
+#define SetIntegrationTime2 _IOW(0xab, 0x02, int) /* takes a 16bit value as
+						     argument */
+#define SetTimeout          _IOW(0xab, 0x01, int) /* sets the timeout for a
+						     EP2 read event. Argument
+						     is in miliseconds */
 
-#define SetIntegrationTime2   0x102 /* takes a 16bit value as argument */
-#define SetTimeout            0x201 /* sets the timeout for a EP2 read event
-				       argument is in miliseconds */
-
-#define GetDeviceID           0x999 /* retrieve the USB device ID */
+#define GetDeviceID         _IO(0xab, 0x99) /* retrieve the USB device ID */

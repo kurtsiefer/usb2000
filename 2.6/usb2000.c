@@ -94,6 +94,10 @@ typedef struct cardinfo {
     /* for proper disconnecting behaviour */
     wait_queue_head_t closingqueue; /* for the unload to wait until closed */
     int reallygone;  /* gets set to 1 just before leaving the close call */
+    
+    /* read buffer; we may allocate that separately but the buffer is just
+       really not large enough for really justifying a separate kmalloc */
+    char returnbuffer[4100];
 
 } cdi;
 
@@ -143,7 +147,6 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
     unsigned char len=1;
     int err;
     int atrf; /* actually transferred data */
-    char returndata[4100];
     char *argp = NULL;
        
     if (!cp->dev) return -ENODEV;
@@ -203,7 +206,7 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
 	    /* just send the last significant byte to the device */
 	    err=usb_bulk_msg(cp->dev, cp->outpipe1, data, len, &atrf, 100);
 	    if (err) {
-		printk("error in sending cmd; err: %d", err);
+	      printk("error in sending cmd 0x%x; err: %d", cmd, err);
 		return -EFAULT;
 	    }
 	    break;
@@ -220,28 +223,28 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
     /* continue processing the commands which receive return data */
     switch (cmd) {
 	case QueryInformation:    /* confirmed to work */
-	    usb_bulk_msg(cp->dev,cp->inpipe2, returndata, 18, &atrf, 100);
-	    if (copy_to_user(argp, returndata, 18)) return -EFAULT;
+	    usb_bulk_msg(cp->dev,cp->inpipe2, cp->returnbuffer, 18, &atrf, 100);
+	    if (copy_to_user(argp, cp->returnbuffer, 18)) return -EFAULT;
 	    break;
 	case QueryStatus:         /* partly confirmed */
-	    usb_bulk_msg(cp->dev,cp->inpipe2, returndata, 16, &atrf, 100);
-	    if (copy_to_user(argp, returndata, 16)) return -EFAULT;
+	    usb_bulk_msg(cp->dev,cp->inpipe2, cp->returnbuffer, 16, &atrf, 100);
+	    if (copy_to_user(argp, cp->returnbuffer, 16)) return -EFAULT;
 	    break;
 
 	/* commands wich return 3 bytes */
 	case ReadRegister:        /* not confirmed yet */  
 	case ReadPCBTemperature:  /* not confirmed yet, something comes back */
-	    err=usb_bulk_msg(cp->dev,cp->inpipe2, returndata, 3, &atrf, 1000);
-	    if (copy_to_user(argp, returndata, 3)) return -EFAULT;
+	    err=usb_bulk_msg(cp->dev,cp->inpipe2, cp->returnbuffer, 3, &atrf, 1000);
+	    if (copy_to_user(argp, cp->returnbuffer, 3)) return -EFAULT;
 	    break;
 
 	/* commands which return 4097 bytes into user mem */
 	case RequestSpectra:      /* confirmed to work */
 	case EmptyPipe:           /* confirmed to work */
-	    err=usb_bulk_msg(cp->dev,cp->inpipe1, returndata,
+	    err=usb_bulk_msg(cp->dev,cp->inpipe1, cp->returnbuffer,
 			     4097, &atrf, cp->timeout_value);	    
 	    if (err) return -err; /* are there better options ? */
-	    if (copy_to_user(argp, returndata, 4097)) return -EFAULT;
+	    if (copy_to_user(argp, cp->returnbuffer, 4097)) return -EFAULT;
 	    break;
 	/* commands which do not involve a USB interaction */
 	case GetDeviceID:
@@ -376,7 +379,6 @@ static void __exit usbdev_remove_one(struct usb_interface *interface) {
     struct cardinfo *cp=NULL; /* to retreive card data */
     /* do the open race condition protection later on, perhaps with a
        semaphore */
-    lock_kernel();  /* to prevent race condition with open */
     cp = (struct cardinfo *)usb_get_intfdata(interface);
     if (!cp) {
 	printk("usbdev: Cannot find device entry \n");
@@ -400,8 +402,6 @@ static void __exit usbdev_remove_one(struct usb_interface *interface) {
     /* mark interface as dead */
     usb_set_intfdata(interface, NULL);
     usb_deregister_dev(interface, &spectrometerclass);
-
-    unlock_kernel();
 
     kfree(cp); /* give back card data container structure */
     
