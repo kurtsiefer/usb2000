@@ -17,6 +17,7 @@ version="2.6"
 loaderdir=hotplug
 loadersrc1=$(loaderdir)/udevsrc
 loadertarget1=$(loaderdir)/60-oceanoptics.rules
+devicegroup=$(shell id -gn)
 
 all: driver hotplug apps
 
@@ -26,7 +27,7 @@ driver:	$(loadertarget1) $(loadertarget2)
 	$(MAKE) -C $(version)
 
 $(loadertarget1): $(loadersrc1)
-	cat $(loadersrc1) | sed "s/DRIVERPATH/$(localdir)\/2.6/g" >$(loadertarget1)
+	cat $(loadersrc1) | sed "s/DRIVERPATH/$(localdir)\/2.6/g" | sed "s/users/$(devicegroup)/g" >$(loadertarget1)
 
 
 .PHONY: apps
