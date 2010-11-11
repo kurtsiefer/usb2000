@@ -44,4 +44,4 @@ clean:
 	$(MAKE) -C apps clean
 
 udev: 	driver $(loadertarget1)
-	cp $(loadertarget1) /etc/udev/rules.d/
+	sudo cp $(loadertarget1) /etc/udev/rules.d/
