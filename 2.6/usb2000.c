@@ -42,6 +42,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/string.h>
@@ -141,7 +142,12 @@ static int usbdev_flat_close(struct inode *inode, struct file *filp) {
     cp->reallygone=1;
     return 0;
 }
-static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg) {
+/* here goes the old version of ioctl, and gets replaced with the new one..
+old definition: 
+
+static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+*/
+static int usbdev_flat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     struct cardinfo *cp = (struct cardinfo *)filp->private_data;
     unsigned char data[6]; /* send stuff */
     unsigned char len=1;
@@ -259,7 +265,8 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
 static struct file_operations usbdev_simple_fops = {
     open:    usbdev_flat_open,
     release: usbdev_flat_close,
-    ioctl:   usbdev_flat_ioctl,
+    /* new version for ioctl without BKL */
+    unlocked_ioctl:   usbdev_flat_ioctl,
 };
 
 
