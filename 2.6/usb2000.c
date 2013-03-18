@@ -147,7 +147,7 @@ old definition:
 
 static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 */
-static int usbdev_flat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
+static long usbdev_flat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     struct cardinfo *cp = (struct cardinfo *)filp->private_data;
     unsigned char data[6]; /* send stuff */
     unsigned char len=1;
@@ -443,7 +443,7 @@ static int __init usbdev_init(void) {
     cif=NULL;
     rc = usb_register( &usbdev_driver );
     if (rc) 
-	err("%s: usb_register failed. Err: %d",USBDEV_NAME,rc);
+	pr_err("%s: usb_register failed. Err: %d",USBDEV_NAME,rc);
     return rc;
 }
 
