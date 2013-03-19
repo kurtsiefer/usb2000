@@ -16,3 +16,8 @@ SUBSYSTEM=="usb", ACTION=="add", ENV{PRODUCT}=="2457/101e/*", RUN+="/sbin/insmod
 # owner set to the original device.
 
 SUBSYSTEM=="usb", ACTION=="add", KERNEL=="*Spectrometer*", GROUP="users", SYMLINK="ioboards/%k"
+
+# stuff that should make it work if there is a usbmisc subsystem; was needed
+# for openSUSE12.3
+
+SUBSYSTEM=="usbmisc", ACTION=="add", KERNEL=="*Spectrometer*", GROUP="users", SYMLINK="ioboards/%k"
