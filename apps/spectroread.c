@@ -98,7 +98,8 @@ int main(int argc, char *argv[]) {
     int handle; /* file handle for usb device */
     int retval;
     int i;
-    int opterr, opt; /* for parsing options */
+    extern int opterr;
+    int opt; /* for parsing options */
     unsigned char data2[4100];
     char *data = (char *) data2;
     int rawvalues[2048];  /* for storing numerical values */
