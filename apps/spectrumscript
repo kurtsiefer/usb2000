@@ -9,11 +9,11 @@ set program "$programroot/spectroread"
 set tmpfile "$dataroot/.tempspectrum"
 set gnucontrol "$dataroot/monitor.gnu" ; # for gnu file
 set gnucanvas  "$dataroot/gcan" ; # canvas file
-set XMIN 720
-set XMAX 850
+set XMIN 350
+set XMAX 1000
 set YMIN ""
 set YMAX ""
-set TIMEPERBIN 100 ; # integration time in millisec
+set TIMEPERBIN 1000 ; # integration time in millisec
 set tipeb $TIMEPERBIN
 set VERBOSITY 31 ; # verbosity for spectrum
 set RUNNING 0
@@ -71,7 +71,7 @@ pack .axops.taxis .axops.yaxis -side left
 pack .axops -anchor w
 
 # canvas for display
-canvas .1 ; # -bg white -width 500 -height 300
+canvas .1  -bg white -width 1000 -height 500
 pack .1
 
 # -------------------------------------------------------------

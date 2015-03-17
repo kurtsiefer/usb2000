@@ -1,19 +1,11 @@
 # Makefile for the usb2000 spectrometer.
-# in pogress, not for release yet. 
 
-# For multiple SuSE versions. Currently
-# generates the drivers and uploads different hotpluggers
-#
-# ToDo: - should allow to choose different install directories than
-#	  the source directories.
-#	- Should use a cleaner install routine
-# 
-# current status: started writing 25.4.09chk
+# some legacy cleanup; does not generically support 2.4 kernels anymore
+# 17.3.215chk
 
 
-# directory for the driver for the local OS version
-localdir=$(subst /,\/,$(PWD))
-version="2.6"
+# directory for the driver for the local OS version; legacy code
+sourcedir=$(PWD)/2.6
 loaderdir=hotplug
 loadersrc1=$(loaderdir)/udevsrc
 loadertarget1=$(loaderdir)/60-oceanoptics.rules
@@ -24,11 +16,10 @@ all: driver hotplug apps
 # execute version-specific makefile
 .PHONY: driver
 driver:	$(loadertarget1) $(loadertarget2)
-	$(MAKE) -C $(version)
+	$(MAKE) -C /lib/modules/`uname -r`/build M=$(sourcedir)
 
 $(loadertarget1): $(loadersrc1)
-	cat $(loadersrc1) | sed "s/DRIVERPATH/$(localdir)\/2.6/g" | sed "s/users/$(devicegroup)/g" >$(loadertarget1)
-
+	cat $(loadersrc1) | sed "s/users/$(devicegroup)/g" >$(loadertarget1)
 
 .PHONY: apps
 apps:
@@ -44,4 +35,6 @@ clean:
 	$(MAKE) -C apps clean
 
 udev: 	driver $(loadertarget1)
+	sudo $(MAKE) -C /lib/modules/`uname -r`/build M=$(sourcedir) modules_install
+	sudo /sbin/depmod -a
 	sudo cp $(loadertarget1) /etc/udev/rules.d/
