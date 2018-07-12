@@ -5,7 +5,7 @@
 
 
 # directory for the driver for the local OS version; legacy code
-sourcedir=$(PWD)/2.6
+sourcedir=$(PWD)/driver
 loaderdir=hotplug
 loadersrc1=$(loaderdir)/udevsrc
 loadertarget1=$(loaderdir)/60-oceanoptics.rules
@@ -15,7 +15,7 @@ all: driver hotplug apps
 
 # execute version-specific makefile
 .PHONY: driver
-driver:	$(loadertarget1) $(loadertarget2)
+driver:	$(loadertarget1)
 	$(MAKE) -C /lib/modules/`uname -r`/build M=$(sourcedir)
 
 $(loadertarget1): $(loadersrc1)
@@ -28,10 +28,12 @@ apps:
 .PHONY: clean
 clean:	
 	rm -f $(loadertarget1)
-	rm -f 2.6/*.o 2.6/*.mod.* 2.6/*.ko
-	rm -fr 2.6/.+
+	rm -f driver/*.o driver/*.mod.* driver/*.ko
+	rm -fr driver/.[ub]*
+	rm -fr driver/.tmp*
 	rm -fr *~
-	rm -f 2.6/Module.symvers
+	rm -f driver/Module.symvers
+	rm -f driver/modules.order
 	$(MAKE) -C apps clean
 
 udev: 	driver $(loadertarget1)
