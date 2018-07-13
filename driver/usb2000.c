@@ -295,7 +295,7 @@ static int usbdev_init_one(struct usb_interface *intf, const struct usb_device_i
     int retval;
 
     /* make sure there is enough card space */
-    cp = (struct cardinfo *)kmalloc(sizeof(struct cardinfo),GFP_KERNEL);
+    cp = (struct cardinfo *)kmalloc(sizeof(struct cardinfo),GFP_DMA);
     if (!cp) {
 	printk("%s: Cannot kmalloc device memory\n",USBDEV_NAME);
 	return -ENOMEM;

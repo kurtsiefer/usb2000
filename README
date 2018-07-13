@@ -1,6 +1,8 @@
 Status of this document: 12.7.2018    christian kurtsiefer
 
-Latest kernel tests: 4.12.14 on openSUSE, 4.4
+Latest kernel confirmed for the driver to work:
+kernel 4.12.14 on openSUSE leap 42, 4.4 on openSUSE leap 15,
+       4.15.0 on ubuntu 18.04 LTS
 
 This is a program set to run a Ocean optics USB2000/2000+ spectrometer. It
 consists of the following parts:
@@ -43,6 +45,12 @@ which I thought they may be available under the USB2000 as well.
     currently has the group name for the device files hard-coded in the source
     file, udevsrc. If you have problems with the group (namely, if no group
     "users" exists), then try to change this by hand.
+    One particularity observed on an Ubuntu distro 18.04 LTS was that the
+    devices get ennumerated not starting from Spectrometer0, but from
+    Spectrometer1. As of 13.7.2018, I have no idea why this happens, or how
+    this can be harmonized. As a remedy, the default device name can be
+    changed to "Spectrometer1" in the applications to fix this.
+
 
 2. Documentation
 
