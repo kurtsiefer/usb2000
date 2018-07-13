@@ -149,7 +149,7 @@ static int usbdev_flat_ioctl(struct inode *inode, struct file *filp, unsigned in
 */
 static long usbdev_flat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
     struct cardinfo *cp = (struct cardinfo *)filp->private_data;
-    unsigned char data[6]; /* send stuff */
+    unsigned char *data = cp->returnbuffer; /* DMA compatible buffer */
     unsigned char len=1;
     int err;
     int atrf; /* actually transferred data */

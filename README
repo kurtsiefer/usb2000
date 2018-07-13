@@ -1,6 +1,6 @@
 Status of this document: 12.7.2018    christian kurtsiefer
 
-Latest kernel tests: 4.12, 4.4
+Latest kernel tests: 4.12.14 on openSUSE, 4.4
 
 This is a program set to run a Ocean optics USB2000/2000+ spectrometer. It
 consists of the following parts:
