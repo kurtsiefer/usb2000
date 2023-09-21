@@ -190,22 +190,29 @@ static long usbdev_flat_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	case SetIntegrationTime: /* takes a 32 bit value */
 	    data[4]=(arg>>24) & 0xff;
 	    data[3]=(arg>>16) & 0xff;
-	    len += 2; 
-        /* commands with a 16 bit (2 byte) argument */
+	    len += 2;
 	    //fall through
-	case SetIntegrationTime2: /* 16 bit version, not confirmed yet */
+	    goto twobytes;
+	    
+	    /* commands with a 16 bit (2 byte) argument */
+        twobytes:
+        case SetIntegrationTime2: /* 16 bit version, not confirmed yet */
 	case SetTriggerMode:  /* not confirmed yet */
 	case SetShutdownMode: /* not confirmed yet */
 	case SetStrobeEnable: /* not confirmed yet */
 	    data[2]=(arg>> 8) & 0xff;
 	    len += 1;
 	    //fall through
+	    goto onebyte;
+        onebyte:
 	case QueryInformation: /* confirmed to work */ 
 	case ReadRegister:     /* yet unconfirmed */
 	    data[1]= arg      & 0xff;
 	    len += 1;
-        /* commands with a 8 bit (1 byte) argument */
 	    //fall through
+	    goto noargument;
+        noargument:
+        /* commands with a 8 bit (1 byte) argument */
 	case InitializeUSB2000: /* seems to work, no idea how to test it */ 
 	case RequestSpectra:    /* confirmed to work */
 	case QueryStatus:       /* confirmed to work */
